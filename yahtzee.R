@@ -4,7 +4,14 @@ library(parallel)
 
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
-# sample results
+# notes -------------------------------------------------------------------
+# function to calculate points per round is finished
+# function to calculate probabilities of the second roll is finished
+# next is to implement the box scoring; e.g. keep track of which scores
+# have been marked and update probabilities based on it
+
+
+# sample rolls
 # roll.results <- samp.two.kind <- c(1,1,3,4,6)
 # roll.results <- samp.three.kind <- c(2,3,4,4,4)
 # roll.results <- samp.four.kind <- c(2,4,2,2,2)
@@ -17,7 +24,7 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # function for one roll -------------------------------------------------------------
 roll.dice <- function(roll.results = NULL) {
   
-  #roll 5 die if none is provided
+  #roll 5 die if none are provided
   if (is.null(roll.results)) {
     roll.results <- sample(6, 5, replace = TRUE)
   }
@@ -100,7 +107,7 @@ roll.dice <- function(roll.results = NULL) {
     "YAHTZEE", yahtzee
   )
   
-  print(results)
+  # print(results)
   
   last.roll <<- roll.results
   
@@ -122,7 +129,6 @@ mcreplicate <- function(n, expr, simplify = "array", ...) {
 n.sims <- 100000L
 results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = roll.dice()) %>% unlist()
 
-
 # for testing -- seperate die rolls from results
 rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
 results <- mclapply(X = rolls, FUN = roll.dice, mc.cores = cpu.cores)
@@ -130,7 +136,7 @@ results <- mclapply(X = rolls, FUN = roll.dice, mc.cores = cpu.cores)
 
 # automatically predict outcomes based on which die to keep --------
 
-predict.new.round <- function() {
+predict.new.round <- function(verbose = FALSE) {
   #function takes the original roll, calculates all potential combination of die to keep,
   #then calculates the expected outcome for each combionation, then returns
   #the best choice based on mean expected outcome of next roll
@@ -189,32 +195,34 @@ predict.new.round <- function() {
 
   }) %>% bind_rows()
   
-  #summary results per category
-  summarized_results <- results %>%
-    group_by(Base_roll) %>%
-    summarize(
-      Mean = mean(Max_score),
-      Median = median(Max_score),
-      SD = sd(Max_score)
-    ) %>%
-    arrange(desc(Mean, Median, SD))
-
-  print(summarized_results)
-
-  plot <- results %>%
-    group_by(Base_roll) %>%
-    mutate(Mean = mean(Max_score)) %>%
-    ungroup() %>%
-    mutate(Base_roll = reorder(Base_roll, Mean)) %>%
-    ggplot(aes(x = Max_score)) +
-    # geom_histogram(binwidth = 1, color = "white") +
-    geom_density() +
-    facet_wrap( ~ Base_roll) +
-    geom_vline(aes(xintercept = Mean,
-                   group = Die_to_keep),
-               colour = 'blue')
-
-  print(plot)
+  if (verbose) {
+    #summary results per category
+    summarized_results <- results %>%
+      group_by(Base_roll) %>%
+      summarize(
+        Mean = mean(Max_score),
+        Median = median(Max_score),
+        SD = sd(Max_score)
+      ) %>%
+      arrange(desc(Mean, Median, SD))
+    
+    plot <- results %>%
+      group_by(Base_roll) %>%
+      mutate(Mean = mean(Max_score)) %>%
+      ungroup() %>%
+      mutate(Base_roll = reorder(Base_roll, Mean)) %>%
+      ggplot(aes(x = Max_score)) +
+      # geom_histogram(binwidth = 1, color = "white") +
+      geom_density() +
+      facet_wrap(~ Base_roll) +
+      geom_vline(aes(xintercept = Mean,
+                     group = Die_to_keep),
+                 colour = 'blue')
+    
+    print(summarized_results)
+    print(plot)
+    
+  }
 
   #pick the best choice based on expected outcome
   best_choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>% pull()
@@ -242,4 +250,27 @@ new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRU
 roll.dice(roll.results = new.roll)
 
 
+# simulating and comparing it against random rolls
+sim.results <- rep(NA, 100)
+for (i in 1:100){
+  roll.dice()
+  
+  #second roll
+  seed.roll <- last.roll %>% sort()
+  best_choice <- predict.new.round()
+  new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
+  roll.dice(roll.results = new.roll)
+  
+  #third roll
+  seed.roll <- last.roll %>% sort()
+  best_choice <- predict.new.round()
+  new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
+  sim.results[i] <- roll.dice(roll.results = new.roll)
+}
 
+game.results <- replicate(100, roll.dice())
+
+tibble(Dumb = game.results, Smart = sim.results) %>%
+  gather(key = "Type", value = "Score") %>%
+  ggplot(aes(x = Type, y = Score)) +
+    geom_boxplot()
