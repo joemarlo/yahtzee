@@ -1,6 +1,9 @@
 library(tidyverse)
 library(combinat)
 library(parallel)
+library(rpart)
+library(rpart.plot)
+library(broom)
 
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
@@ -21,8 +24,8 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # roll.results <- samp.fullhouse <- c(2,2,2,4,4)
 
 
-# function for one roll -------------------------------------------------------------
-roll.dice <- function(roll.results = NULL) {
+# function for one turn and calculate resulting score --------------------------
+roll.dice <- function(roll.results = NULL, verbose = FALSE) {
   
   #roll 5 die if none are provided
   if (is.null(roll.results)) {
@@ -107,7 +110,7 @@ roll.dice <- function(roll.results = NULL) {
     "YAHTZEE", yahtzee
   )
   
-  # print(results)
+  if (verbose) {print(results)}
   
   last.roll <<- roll.results
   
@@ -274,3 +277,96 @@ tibble(Dumb = game.results, Smart = sim.results) %>%
   gather(key = "Type", value = "Score") %>%
   ggplot(aes(x = Type, y = Score)) +
     geom_boxplot()
+
+
+# generate dataset of results ---------------------------------------------
+
+n.sims <- 100000L
+count.results <- rep(NA, n.sims)
+score.results <- rep(NA, n.sims)
+roll1.results <- rep(NA, n.sims)
+roll2.results <- rep(NA, n.sims)
+roll3.results <- rep(NA, n.sims)
+die.to.keep.2.results <- rep(NA, n.sims)
+die.to.keep.3.results <- rep(NA, n.sims)
+
+roll.dice.again <- function() {
+  die.to.keep <- sample(0:5, 1)
+  if (die.to.keep > 0) {
+    new.roll <-
+      append(last.roll[1:die.to.keep],
+              sample(last.roll, 5 - die.to.keep, replace = TRUE))
+  } else {
+    new.roll <- sample(1:6, 5, replace = TRUE)
+  }
+  
+  return <- list(new.roll, die.to.keep)
+  return(return)
+}
+                    
+
+for (i in 1:n.sims) {
+  counter <- 1L
+  score <- roll.dice()
+  roll1.results[i] <- paste(last.roll, collapse = "-")
+  
+  if (rbinom(1, 1, .5) == 1) {
+    
+    new.roll <- roll.dice.again()
+    die.to.keep.2.results[i] <- new.roll[[2]]
+    
+    score <- roll.dice(new.roll[[1]])
+    counter <- counter + 1
+    roll2.results[i] <- paste(last.roll, collapse = "-")
+    
+    if (rbinom(1, 1, .5) == 1) {
+      
+      new.roll <- roll.dice.again()
+      die.to.keep.3.results[i] <- new.roll[[2]]
+      
+      score <- roll.dice(new.roll[[1]])
+      counter <- counter + 1
+      roll3.results[i] <- paste(last.roll, collapse = "-")
+    }
+  }
+  
+  count.results[i] <- counter
+  score.results[i] <- score
+}
+
+all.results <- tibble(
+  roll.count = count.results,
+  score = score.results,
+  first.roll = roll1.results,
+  second.roll = roll2.results,
+  third.roll = roll3.results,
+  die.kept.2 = die.to.keep.2.results,
+  die.kept.3 = die.to.keep.3.results
+)
+
+all.results <- all.results %>%
+  mutate(Second.roll = roll.count == 2,
+         Third.roll = roll.count == 3) %>%
+  mutate(die.kept.2.n = substr(second.roll, 0, die.kept.2*2-1),
+         die.kept.3.n = substr(third.roll, 0, die.kept.3*2-1)) %>%
+  rowwise() %>%
+  mutate("2.1" = "1" %in% unlist(str_split(die.kept.2.n, "-")),
+         "2.2" = "2" %in% unlist(str_split(die.kept.2.n, "-")),
+         "2.3" = "3" %in% unlist(str_split(die.kept.2.n, "-")),
+         "2.4" = "4" %in% unlist(str_split(die.kept.2.n, "-")),
+         "2.5" = "5" %in% unlist(str_split(die.kept.2.n, "-")),
+         "3.1" = "1" %in% unlist(str_split(die.kept.3.n, "-")),
+         "3.2" = "2" %in% unlist(str_split(die.kept.3.n, "-")),
+         "3.3" = "3" %in% unlist(str_split(die.kept.3.n, "-")),
+         "3.4" = "4" %in% unlist(str_split(die.kept.3.n, "-")),
+         "3.5" = "5" %in% unlist(str_split(die.kept.3.n, "-"))) %>%
+  ungroup() %>%
+  select(-c("roll.count", "second.roll", "third.roll", "die.kept.2.n", "die.kept.3.n")) %>%
+  nest(-first.roll) %>%
+  mutate(fit = map(data, ~ rpart(score ~ die.kept.2 + die.kept.3 + Second.roll + Third.roll +
+                                 `2.1` + `2.2` + `2.3` + `2.4` + `2.5` +
+                                  `3.1` + `3.2` + `3.3` + `3.4` + `3.5`, data = .)))
+
+all.results$fit[[5000]] %>% rpart.plot(roundint = FALSE)
+
+
