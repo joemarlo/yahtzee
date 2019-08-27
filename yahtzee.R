@@ -1,9 +1,6 @@
 library(tidyverse)
 library(combinat)
 library(parallel)
-library(rpart)
-library(rpart.plot)
-library(broom)
 
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
@@ -27,12 +24,16 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # function for one turn and calculate resulting score --------------------------
 roll.dice <- function(roll.results = NULL, verbose = FALSE) {
   
+  #function returns the maximum score for a random dice throw
+  #if no roll.results are provded then results are randomly generated
+  #verbose prints out the score sheet
+  
   #roll 5 die if none are provided
   if (is.null(roll.results)) {
     roll.results <- sample(6, 5, replace = TRUE)
   }
   
-  # upper section
+  # upper section of the score sheet
   Ones <- sum(roll.results[roll.results == 1])
   Twos <- sum(roll.results[roll.results == 2])
   Threes <- sum(roll.results[roll.results == 3])
@@ -59,34 +60,34 @@ roll.dice <- function(roll.results = NULL, verbose = FALSE) {
     (calculate.kinds(2) > 0) * (calculate.kinds(3) > 0) * 25
   
   #straights
-  sorted <- roll.results %>% sort() %>% unique()
-  
-  #list of indices to subset the results over and then match then to dices. E.g. we want to see if
-  # list[1:4] matches the the straight 1:4 or list[2:5] matches the straight 1:4, etc.
-  straight4.subset.matches <-
-    expand.grid(list(1:4, 2:5), list(1:4, 2:5, 3:6))
-  
-  #calculates if all the numbers in a *subset index* of the list matches the input vector *matches*
-  match.subset <-
-    function(subset.index, matches) {
-      all(sorted[subset.index] == matches)
+    sorted <- roll.results %>% sort() %>% unique()
+    
+    #list of indices to subset the results over and then match then to dices. E.g. we want to see if
+    # list[1:4] matches the the straight 1:4 or list[2:5] matches the straight 1:4, etc.
+    straight4.subset.matches <-
+      expand.grid(list(1:4, 2:5), list(1:4, 2:5, 3:6))
+    
+    #calculates if all the numbers in a *subset index* of the list matches the input vector *matches*
+    match.subset <-
+      function(subset.index, matches) {
+        all(sorted[subset.index] == matches)
+      }
+    
+    #apply the function
+    straight4 <- any(
+      mapply(
+        FUN = match.subset,
+        subset.index = straight4.subset.matches$Var1,
+        matches = straight4.subset.matches$Var2
+      ),
+      na.rm = TRUE
+    ) * 30
+    
+    if (length(sorted) == 5) {
+      straight5 <- all(sorted == 1:5) * 40
+    } else {
+      straight5 <- 0
     }
-  
-  #apply the function
-  straight4 <- any(
-    mapply(
-      FUN = match.subset,
-      subset.index = straight4.subset.matches$Var1,
-      matches = straight4.subset.matches$Var2
-    ),
-    na.rm = TRUE
-  ) * 30
-  
-  if (length(sorted) == 5) {
-    straight5 <- all(sorted == 1:5) * 40
-  } else {
-    straight5 <- 0
-  }
   
   #sum of the parts
   chance <- sum(roll.results)
@@ -144,7 +145,7 @@ predict.new.round <- function(verbose = FALSE) {
   #then calculates the expected outcome for each combionation, then returns
   #the best choice based on mean expected outcome of next roll
   
-  # keep 0, 1, 2, 3, 4 dice, generate all combinations of new die, then calculate scores
+  # keep 0, 1, 2, 3, 4, 5 dice, generate all combinations of new die, then calculate scores
   results <- lapply(0:5, function(die.to.keep) {
 
     #different combinations of the original die to keep
@@ -198,8 +199,8 @@ predict.new.round <- function(verbose = FALSE) {
 
   }) %>% bind_rows()
   
+  #summary results per category and plot
   if (verbose) {
-    #summary results per category
     summarized_results <- results %>%
       group_by(Base_roll) %>%
       summarize(
@@ -277,96 +278,4 @@ tibble(Dumb = game.results, Smart = sim.results) %>%
   gather(key = "Type", value = "Score") %>%
   ggplot(aes(x = Type, y = Score)) +
     geom_boxplot()
-
-
-# generate dataset of results ---------------------------------------------
-
-n.sims <- 100000L
-count.results <- rep(NA, n.sims)
-score.results <- rep(NA, n.sims)
-roll1.results <- rep(NA, n.sims)
-roll2.results <- rep(NA, n.sims)
-roll3.results <- rep(NA, n.sims)
-die.to.keep.2.results <- rep(NA, n.sims)
-die.to.keep.3.results <- rep(NA, n.sims)
-
-roll.dice.again <- function() {
-  die.to.keep <- sample(0:5, 1)
-  if (die.to.keep > 0) {
-    new.roll <-
-      append(last.roll[1:die.to.keep],
-              sample(last.roll, 5 - die.to.keep, replace = TRUE))
-  } else {
-    new.roll <- sample(1:6, 5, replace = TRUE)
-  }
-  
-  return <- list(new.roll, die.to.keep)
-  return(return)
-}
-                    
-
-for (i in 1:n.sims) {
-  counter <- 1L
-  score <- roll.dice()
-  roll1.results[i] <- paste(last.roll, collapse = "-")
-  
-  if (rbinom(1, 1, .5) == 1) {
-    
-    new.roll <- roll.dice.again()
-    die.to.keep.2.results[i] <- new.roll[[2]]
-    
-    score <- roll.dice(new.roll[[1]])
-    counter <- counter + 1
-    roll2.results[i] <- paste(last.roll, collapse = "-")
-    
-    if (rbinom(1, 1, .5) == 1) {
-      
-      new.roll <- roll.dice.again()
-      die.to.keep.3.results[i] <- new.roll[[2]]
-      
-      score <- roll.dice(new.roll[[1]])
-      counter <- counter + 1
-      roll3.results[i] <- paste(last.roll, collapse = "-")
-    }
-  }
-  
-  count.results[i] <- counter
-  score.results[i] <- score
-}
-
-all.results <- tibble(
-  roll.count = count.results,
-  score = score.results,
-  first.roll = roll1.results,
-  second.roll = roll2.results,
-  third.roll = roll3.results,
-  die.kept.2 = die.to.keep.2.results,
-  die.kept.3 = die.to.keep.3.results
-)
-
-all.results <- all.results %>%
-  mutate(Second.roll = roll.count == 2,
-         Third.roll = roll.count == 3) %>%
-  mutate(die.kept.2.n = substr(second.roll, 0, die.kept.2*2-1),
-         die.kept.3.n = substr(third.roll, 0, die.kept.3*2-1)) %>%
-  rowwise() %>%
-  mutate("2.1" = "1" %in% unlist(str_split(die.kept.2.n, "-")),
-         "2.2" = "2" %in% unlist(str_split(die.kept.2.n, "-")),
-         "2.3" = "3" %in% unlist(str_split(die.kept.2.n, "-")),
-         "2.4" = "4" %in% unlist(str_split(die.kept.2.n, "-")),
-         "2.5" = "5" %in% unlist(str_split(die.kept.2.n, "-")),
-         "3.1" = "1" %in% unlist(str_split(die.kept.3.n, "-")),
-         "3.2" = "2" %in% unlist(str_split(die.kept.3.n, "-")),
-         "3.3" = "3" %in% unlist(str_split(die.kept.3.n, "-")),
-         "3.4" = "4" %in% unlist(str_split(die.kept.3.n, "-")),
-         "3.5" = "5" %in% unlist(str_split(die.kept.3.n, "-"))) %>%
-  ungroup() %>%
-  select(-c("roll.count", "second.roll", "third.roll", "die.kept.2.n", "die.kept.3.n")) %>%
-  nest(-first.roll) %>%
-  mutate(fit = map(data, ~ rpart(score ~ die.kept.2 + die.kept.3 + Second.roll + Third.roll +
-                                 `2.1` + `2.2` + `2.3` + `2.4` + `2.5` +
-                                  `3.1` + `3.2` + `3.3` + `3.4` + `3.5`, data = .)))
-
-all.results$fit[[5000]] %>% rpart.plot(roundint = FALSE)
-
 
