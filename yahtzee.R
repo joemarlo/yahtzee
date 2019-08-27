@@ -1,4 +1,5 @@
 library(tidyverse)
+library(combinat)
 library(parallel)
 
 cpu.cores <- detectCores() #number of cores available for parallel processing
@@ -99,7 +100,7 @@ roll.dice <- function(roll.results = NULL) {
     "YAHTZEE", yahtzee
   )
   
-  # print(results)
+  print(results)
   
   last.roll <<- roll.results
   
@@ -109,7 +110,7 @@ roll.dice <- function(roll.results = NULL) {
 }
 
 
-# simulate ----------------------------------------------------------------
+# simulate roll outcomes  -------------------------------------------
 
 #function to parallelize replicate
 mcreplicate <- function(n, expr, simplify = "array", ...) {
@@ -127,40 +128,65 @@ rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
 results <- mclapply(X = rolls, FUN = roll.dice, mc.cores = cpu.cores)
 
 
-# automatically predict outcomes ------------------------------------------
+# automatically predict outcomes based on which die to keep --------
 
 predict.new.round <- function() {
-  #function takes the original roll, simulates the potential options (i.e. how many and
-  # which die to keep) then returns the best choice based on mean expected outcome of next roll
+  #function takes the original roll, calculates all potential combination of die to keep,
+  #then calculates the expected outcome for each combionation, then returns
+  #the best choice based on mean expected outcome of next roll
   
-  # keep 0, 1, 2, 3, 4 dice, sample new die, then simulate
-  results <- lapply(0:4, function(die.to.keep) {
+  # keep 0, 1, 2, 3, 4 dice, generate all combinations of new die, then calculate scores
+  results <- lapply(0:5, function(die.to.keep) {
+
+    #different combinations of the original die to keep
     base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE)
-    base.rolls <- rep(base.rolls, n.sims)
-    new.rolls <- lapply(base.rolls, function(x) {
-      x <- append(x, sample(6, 5 - die.to.keep, replace = TRUE))
-    })
+    
+    #set up data then generate all possible permutations of the new roll
+    reps <- replicate(5 - die.to.keep, 1:6, simplify = FALSE)
+    new.perms <- expand.grid(reps) #generates all permutations of new die
+    new.perms <- lapply(1:nrow(new.perms), function(x){new.perms[x,] %>% as.numeric()}) #unlists the die
+    
+    #combine the base.roll combinations with the new permutations to generate
+    #all possible outcomes
+    if (die.to.keep > 0) {
+      new.rolls <- expand.grid(base.rolls, new.perms)
+      new.rolls <-
+        lapply(1:nrow(new.rolls), function(x) {
+          new.rolls[x, ] %>% unlist() %>% as.vector()
+        })
+    } else
+      new.rolls <- new.perms
+    
+    #calculate the maxmium scores for each possible roll
     max.scores <- mclapply(X = new.rolls,
                            FUN = roll.dice,
                            mc.cores = cpu.cores) %>% unlist()
+
     
-    #convert to clean data frame
-    base.rolls <- lapply(base.rolls, function(x) {
-      paste(x, collapse = "-")
-    }) %>% unlist() %>% enframe()
-    base.rolls$name <- die.to.keep
-    
+    #convert data to a clean data frame then return the results
+    if (die.to.keep > 0) {
+      base.rolls <- rep(base.rolls, length.out = length(new.rolls))
+      base.rolls <- lapply(base.rolls, function(x) {
+        paste(x, collapse = "-")
+      }) %>% unlist() %>% enframe() %>% select(value)
+    } else
+      base.rolls <- tibble(rep("Keep no dice", length(new.rolls))
+      )
+
     new.rolls <-
       lapply(new.rolls, function(x) {
         paste(x, collapse = "-")
-      }) %>% unlist() %>% enframe() %>% select(value)
-    
+      }) %>% unlist() %>% enframe()
+    new.rolls$name <- die.to.keep
+
     max.scores <- max.scores %>% enframe() %>% select(value)
-    results <- bind_cols(base.rolls, new.rolls, max.scores)
-    names(results) <-
-      c("Die_to_keep", "Base_roll", "Roll", "Max_score")
     
+    results <- bind_cols(base.rolls, new.rolls, max.scores)
+    names(results) <- c("Base_roll", "Die_to_keep", "Roll", "Max_score")
+    results <- results %>% select(Die_to_keep, Base_roll, Roll, Max_score)
+
     return(results)
+
   }) %>% bind_rows()
   
   #summary results per category
@@ -172,7 +198,7 @@ predict.new.round <- function() {
       SD = sd(Max_score)
     ) %>%
     arrange(desc(Mean, Median, SD))
-  
+
   print(summarized_results)
 
   plot <- results %>%
@@ -181,6 +207,7 @@ predict.new.round <- function() {
     ungroup() %>%
     mutate(Base_roll = reorder(Base_roll, Mean)) %>%
     ggplot(aes(x = Max_score)) +
+    # geom_histogram(binwidth = 1, color = "white") +
     geom_density() +
     facet_wrap( ~ Base_roll) +
     geom_vline(aes(xintercept = Mean,
@@ -188,81 +215,31 @@ predict.new.round <- function() {
                colour = 'blue')
 
   print(plot)
-  
+
   #pick the best choice based on expected outcome
   best_choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>% pull()
   best_choice <- str_split(best_choice, "-") %>% lapply(., as.numeric) %>% unlist()
-  
+
   return(best_choice)
 }
 
 
-# run the full simulation -------------------------------------------------
+# roll the dice, calculate probabilities, choose best, roll again ---------
 
-n.sims <- 1000L # sims per "keep" category per round
-
+#first roll
 roll.dice()
+
+#second roll
 seed.roll <- last.roll %>% sort()
 best_choice <- predict.new.round()
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
 roll.dice(roll.results = new.roll)
 
-# pre function code -------------------------------------------------------
-
-# keep 0, 1, 2, 3, 4 dice, sample new die, then simulate
-results <- lapply(0:4, function(die.to.keep) {
-  base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE)
-  base.rolls <- rep(base.rolls, n.sims)
-  new.rolls <- lapply(base.rolls, function(x) {
-    x <- append(x, sample(6, 5 - die.to.keep, replace = TRUE))
-  })
-  max.scores <- mclapply(X = new.rolls,
-                         FUN = roll.dice,
-                         mc.cores = cpu.cores) %>% unlist()
-  
-  #convert to clean data frame
-  base.rolls <- lapply(base.rolls, function(x) {
-    paste(x, collapse = "-")
-  }) %>% unlist() %>% enframe()
-  base.rolls$name <- die.to.keep
-  
-  new.rolls <-
-    lapply(new.rolls, function(x) {
-      paste(x, collapse = "-")
-    }) %>% unlist() %>% enframe() %>% select(value)
-
-  max.scores <- max.scores %>% enframe() %>% select(value)
-  results <- bind_cols(base.rolls, new.rolls, max.scores)
-  names(results) <- c("Die_to_keep", "Base_roll", "Roll", "Max_score")
-  
-  return(results)
-}) %>% bind_rows()
-
-#plot the expected results
-results %>%
-  group_by(Base_roll) %>%
-  mutate(Mean = mean(Max_score)) %>%
-  ungroup() %>%
-  ggplot(aes(x = Max_score)) +
-    geom_density() +
-    facet_wrap(~Base_roll) +
-    geom_vline(aes(xintercept = Mean,
-                   group = Die_to_keep),
-               colour = 'blue')
-
-#average outcome per category
-summarized_results <- results %>%
-  group_by(Base_roll) %>%
-  summarize(Mean = mean(Max_score),
-            Median = median(Max_score),
-            SD = sd(Max_score))
-
-#pick the choice based on expected outcome
-best_choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>% pull()
-best_choice <- str_split(best_choice, "-") %>% lapply(., as.numeric) %>% unlist()
-
-#roll the die
+#third roll
+seed.roll <- last.roll %>% sort()
+best_choice <- predict.new.round()
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
 roll.dice(roll.results = new.roll)
+
 
 
