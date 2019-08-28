@@ -200,16 +200,16 @@ predict.new.round <- function(verbose = FALSE) {
   }) %>% bind_rows()
   
   #summary results per category and plot
+  summarized_results <- results %>%
+    group_by(Base_roll) %>%
+    summarize(
+      Mean = mean(Max_score),
+      Median = median(Max_score),
+      SD = sd(Max_score)
+    ) %>%
+    arrange(desc(Mean, Median, SD))
+  
   if (verbose) {
-    summarized_results <- results %>%
-      group_by(Base_roll) %>%
-      summarize(
-        Mean = mean(Max_score),
-        Median = median(Max_score),
-        SD = sd(Max_score)
-      ) %>%
-      arrange(desc(Mean, Median, SD))
-    
     plot <- results %>%
       group_by(Base_roll) %>%
       mutate(Mean = mean(Max_score)) %>%
@@ -218,7 +218,7 @@ predict.new.round <- function(verbose = FALSE) {
       ggplot(aes(x = Max_score)) +
       # geom_histogram(binwidth = 1, color = "white") +
       geom_density() +
-      facet_wrap(~ Base_roll) +
+      facet_wrap( ~ Base_roll) +
       geom_vline(aes(xintercept = Mean,
                      group = Die_to_keep),
                  colour = 'blue')
