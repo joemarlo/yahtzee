@@ -3,7 +3,7 @@
 
 One of the core challenges when playing [yahtzee](https://en.wikipedia.org/wiki/Yahtzee) is determining which die to keep before throwing your second and third rolls. Plenty has been [written](http://mathworld.wolfram.com/Yahtzee.html) on the [probabilities](https://www.thoughtco.com/probability-of-rolling-a-yahtzee-3126593) of yahtzee rolls and [simulating](http://galsterhome.com/stats/Tutorial/SAS19.htm) [yahtzee](https://www.reddit.com/r/dataisbeautiful/comments/8vgxwl/simulating_10000_yahtzee_dice_throws_how_many/) outcomes. The goal of this script is to go one step further and optimize future rolls by determining likely outcomes after your first roll.
 
-`calculate.score()`: function calculates the score of a given roll. Allows us to simulate a single roll and view the results
+`calculate.score()`: function calculates the score of a given roll. Allows us to simulate a single roll and view the results.
 ```
 calculate.score(verbose = TRUE)
 # A tibble: 14 x 2
@@ -28,7 +28,7 @@ calculate.score(verbose = TRUE)
 
 Great. We rolled a '1-6-6-6-2' and can mark down 21 points. But this doesn't tell us what decision we should make next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
 
-`calculate.die.to.keep()`: function takes a roll, withholds a certain amount of die then calculates the probabilities of the expected outcomes. Repeats for each combination of die to withhold
+`calculate.die.to.keep()`: function takes a roll, withholds a certain amount of die then calculates the probabilities of the expected outcomes. Repeats for each combination of die to withhold.
 
 ```
 calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
