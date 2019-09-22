@@ -54,11 +54,11 @@ calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 [1] 6 6 6
 ```
 
-![](Expected roll outcomes.png)
+![](Expected_roll_outcomes.png)
 
 That looks great but is it really working? Let's compare it to just randomly rolling die.
 
-![](Smart vs. Dumb boxplot.png)
+![](Smart_vs_Dumb_boxplot.png)
 
 
 ## Items to (eventually) finish
