@@ -26,7 +26,7 @@ calculate.score(verbose = TRUE)
 [1] 21
 ```
 
-Great. We rolled a '1-6-6-6-2' and can mark down 21 points. But this doesn't tell us what decision we should make next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
+Great. We rolled a '1-6-6-6-2' and can mark down 21 points. But this doesn't tell us what we should do next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
 
 `calculate.die.to.keep()`: function takes a roll, withholds a certain amount of die then calculates the probabilities of the expected outcomes. Repeats for each combination of die to withhold.
 
@@ -56,12 +56,12 @@ calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 
 ![](Expected_roll_outcomes.png)
 
-That looks great but is it really working? Let's compare it to just randomly rolling die.
+That looks great and seems like we should hold onto those three 6s. But is it really working? Let's run this a few more times and automatically choose our next roll based on the highest mean expected outcome (score). Then we can compare the results to just randomly rolling die.
 
 ![](Smart_vs_Dumb_boxplot.png)
 
 
-## Items to (eventually) finish
+## To-do list
 - [x] Function to calculate points per round
 - [x] Function to calculate probabilities of the second roll and choose which die to keep
 - [ ] Implement box scoring (e.g. keep track of which scores have been marked and update probabilities based on it)

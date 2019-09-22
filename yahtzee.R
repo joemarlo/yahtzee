@@ -25,7 +25,7 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # roll.results <- samp.fullhouse <- c(2,2,2,4,4)
 
 
-# function to calculate score a given roll --------------------------
+# function to calculate score of a given roll --------------------------
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   
   #function returns the maximum score for a random dice throw
