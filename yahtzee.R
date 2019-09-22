@@ -9,6 +9,7 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # function to calculate probabilities of the second roll is finished
 # next is to implement the box scoring; e.g. keep track of which scores
 # have been marked and update probabilities based on it
+# note there is a global variable "last.roll" that is updated after each call to calculate.score()
 
 
 # sample rolls
@@ -22,11 +23,11 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 
 
 # function for one turn and calculate resulting score --------------------------
-roll.dice <- function(roll.results = NULL, verbose = FALSE) {
+calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   
   #function returns the maximum score for a random dice throw
-  #if no roll.results are provded then results are randomly generated
-  #verbose prints out the score sheet
+  #if no roll is provided (roll.results) then results are randomly generated
+  #verbose argument prints out the score sheet
   
   #roll 5 die if none are provided
   if (is.null(roll.results)) {
@@ -130,20 +131,25 @@ mcreplicate <- function(n, expr, simplify = "array", ...) {
 }
 
 #simulate many rolls
-n.sims <- 100000L
-results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = roll.dice()) %>% unlist()
+n.sims <- 1000L
+results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score()) %>% unlist()
 
 # for testing -- seperate die rolls from results
 rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
-results <- mclapply(X = rolls, FUN = roll.dice, mc.cores = cpu.cores)
+results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores)
 
 
 # automatically predict outcomes based on which die to keep --------
 
-predict.new.round <- function(verbose = FALSE) {
-  #function takes the original roll, calculates all potential combination of die to keep,
-  #then calculates the expected outcome for each combionation, then returns
-  #the best choice based on mean expected outcome of next roll
+calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
+  #function takes a current roll (seed.roll), calculates all potential combinations of die to keep,
+  #then calculates the expected outcome for each combination, then returns
+  #the best choice of die to keep based on mean expected outcome of next roll
+  #verbose prints a table of possible outcomes and plots the densities
+  
+ 
+  # stop if no seed.roll is provided
+  if (missing(seed.roll)) {stop("No seed roll provided; maybe you want to provide last.roll?")}
   
   # keep 0, 1, 2, 3, 4, 5 dice, generate all combinations of new die, then calculate scores
   results <- lapply(0:5, function(die.to.keep) {
@@ -169,7 +175,7 @@ predict.new.round <- function(verbose = FALSE) {
     
     #calculate the maxmium scores for each possible roll
     max.scores <- mclapply(X = new.rolls,
-                           FUN = roll.dice,
+                           FUN = calculate.score,
                            mc.cores = cpu.cores) %>% unlist()
 
     
@@ -221,7 +227,10 @@ predict.new.round <- function(verbose = FALSE) {
       facet_wrap( ~ Base_roll) +
       geom_vline(aes(xintercept = Mean,
                      group = Die_to_keep),
-                 colour = 'blue')
+                 colour = 'blue') +
+      labs(title = "Density of outcomes segmented by which die to keep",
+           y = "Density",
+           x = "Score")
     
     print(summarized_results)
     print(plot)
@@ -239,41 +248,41 @@ predict.new.round <- function(verbose = FALSE) {
 # roll the dice, calculate probabilities, choose best, roll again ---------
 
 #first roll
-roll.dice()
+calculate.score(roll.results = NULL)
 
 #second roll
-seed.roll <- last.roll %>% sort()
-best_choice <- predict.new.round()
+best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
-roll.dice(roll.results = new.roll)
+calculate.score(roll.results = new.roll)
 
 #third roll
-seed.roll <- last.roll %>% sort()
-best_choice <- predict.new.round()
+best_choice <- calculate.die.to.keep()
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
-roll.dice(roll.results = new.roll)
+calculate.score(roll.results = new.roll)
 
 
 # simulating and comparing it against random rolls
 sim.results <- rep(NA, 100)
 for (i in 1:100){
-  roll.dice()
+  calculate.score()
   
   #second roll
   seed.roll <- last.roll %>% sort()
-  best_choice <- predict.new.round()
+  best_choice <- calculate.die.to.keep()
   new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
-  roll.dice(roll.results = new.roll)
+  calculate.score(roll.results = new.roll)
   
   #third roll
   seed.roll <- last.roll %>% sort()
-  best_choice <- predict.new.round()
+  best_choice <- calculate.die.to.keep()
   new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
-  sim.results[i] <- roll.dice(roll.results = new.roll)
+  sim.results[i] <- calculate.score(roll.results = new.roll)
 }
 
-game.results <- replicate(100, roll.dice())
+#random rolls
+game.results <- replicate(100, calculate.score())
 
+#comparison of the prediction function and random rolls
 tibble(Dumb = game.results, Smart = sim.results) %>%
   gather(key = "Type", value = "Score") %>%
   ggplot(aes(x = Type, y = Score)) +
