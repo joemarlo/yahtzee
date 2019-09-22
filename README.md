@@ -2,7 +2,11 @@
 `yahtzee.R`: R script that generates yahtzee roll simulations and plots probabilistic outcomes
 
 
+<<<<<<< HEAD
 One of the core challenges when playing [yahtzee](https://en.wikipedia.org/wiki/Yahtzee) is determining which die to keep before throwing your second and third rolls. Plenty has been [written](http://mathworld.wolfram.com/Yahtzee.html) on the [probabilities](https://www.thoughtco.com/probability-of-rolling-a-yahtzee-3126593) of yahtzee rolls and [simulating](http://galsterhome.com/stats/Tutorial/SAS19.htm) [yahtzee](https://www.reddit.com/r/dataisbeautiful/comments/8vgxwl/simulating_10000_yahtzee_dice_throws_how_many/) outcomes. The goal of this script is to go one step further and optimize future rolls by determining likely outcomes after your first roll.
+=======
+One of the core challenges when playing [yahtzee](https://en.wikipedia.org/wiki/Yahtzee) is determining which die to hold on before throwing your second and third rolls. Plenty has been [written](http://mathworld.wolfram.com/Yahtzee.html) on the [probabilities](https://www.thoughtco.com/probability-of-rolling-a-yahtzee-3126593) and [simulating](http://galsterhome.com/stats/Tutorial/SAS19.htm) [yahtzee](https://www.reddit.com/r/dataisbeautiful/comments/8vgxwl/simulating_10000_yahtzee_dice_throws_how_many/). The goal of this script is not to calculate probabilties of a single throw but to optimize future rolls.
+
 
 `calculate.score()`: function calculates the score of a given roll. Allows us to simulate a single roll and view the results
 ```
@@ -60,6 +64,7 @@ calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 That looks great but is it really working? Let's compare it to just randomly rolling die.
 
 ![](Smart vs. Dumb boxplot.png)
+
 
 ## Items to (eventually) finish
 - [x] Function to calculate points per round
