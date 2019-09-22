@@ -28,7 +28,7 @@ calculate.score(verbose = TRUE)
 
 Great. We rolled a '1-6-6-6-2' and can mark down 21 points. But this doesn't tell us what decision we should make next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
 
-`calculate.die.to.keep()`: function takes a roll, withholds a certain amount of die then calculates the probabilities of the expected outcomes. Repeats for each combination of die
+`calculate.die.to.keep()`: function takes a roll, withholds a certain amount of die then calculates the probabilities of the expected outcomes. Repeats for each combination of die to withhold
 
 ```
 calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
