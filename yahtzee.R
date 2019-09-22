@@ -6,13 +6,16 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 
 # notes -------------------------------------------------------------------
 # function to calculate points per round is finished
-# function to calculate probabilities of the second roll is finished
+# function to calculate probabilities of the second roll and choose which die to keep is finished 
 # next is to implement the box scoring; e.g. keep track of which scores
-# have been marked and update probabilities based on it
+#   have been marked and update probabilities based on it
+#calculate.die.to.keep may be more efficient if a lookup table of all the probabilites
+#   is first implemented then reused for each function call
 # note there is a global variable "last.roll" that is updated after each call to calculate.score()
 
+# yahtzee rule book here: https://www.hasbro.com/common/documents/dad2af551c4311ddbd0b0800200c9a66/8302F43150569047F57EB8D746BA9D86.pdf
 
-# sample rolls
+# sample rolls for testing
 # roll.results <- samp.two.kind <- c(1,1,3,4,6)
 # roll.results <- samp.three.kind <- c(2,3,4,4,4)
 # roll.results <- samp.four.kind <- c(2,4,2,2,2)
@@ -22,11 +25,11 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # roll.results <- samp.fullhouse <- c(2,2,2,4,4)
 
 
-# function for one turn and calculate resulting score --------------------------
+# function to calculate score a given roll --------------------------
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   
   #function returns the maximum score for a random dice throw
-  #if no roll is provided (roll.results) then results are randomly generated
+  #if no roll is provided (roll.results) then a roll is randomly generated
   #verbose argument prints out the score sheet
   
   #roll 5 die if none are provided
@@ -57,16 +60,15 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   yahtzee <- (calculate.kinds(5) > 0) * 50
   
   #full house
-  full.house <-
-    (calculate.kinds(2) > 0) * (calculate.kinds(3) > 0) * 25
+  full.house <- (calculate.kinds(2) > 0) * (calculate.kinds(3) > 0) * 25
   
   #straights
+    #sorted roll.results
     sorted <- roll.results %>% sort() %>% unique()
     
-    #list of indices to subset the results over and then match then to dices. E.g. we want to see if
+    #list of indices to subset the results over and then match them to dices. E.g. we want to see if
     # list[1:4] matches the the straight 1:4 or list[2:5] matches the straight 1:4, etc.
-    straight4.subset.matches <-
-      expand.grid(list(1:4, 2:5), list(1:4, 2:5, 3:6))
+    straight4.subset.matches <- expand.grid(list(1:4, 2:5), list(1:4, 2:5, 3:6))
     
     #calculates if all the numbers in a *subset index* of the list matches the input vector *matches*
     match.subset <-
@@ -121,6 +123,9 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   return(best.result)
 }
 
+#test the function
+calculate.score(verbose = TRUE)
+
 
 # simulate roll outcomes  -------------------------------------------
 
@@ -136,7 +141,29 @@ results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score(
 
 # for testing -- seperate die rolls from results
 rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
-results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores)
+results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores) %>% unlist()
+
+#theme for ggplot
+seashell.theme <- theme(legend.position = "none",
+                        panel.grid.minor = element_line(color = NA),
+                        panel.background = element_rect(fill = "seashell2"),
+                        plot.background = element_rect(fill = "seashell",
+                                                       color = NA),
+                        axis.title = element_text(color = "gray30",
+                                                  size = 12),
+                        strip.background = element_rect(fill = "seashell3"),
+                        plot.title = element_text(color = "gray30",
+                                                  size = 14,
+                                                  face = "bold"))
+
+#density plot of score results
+ggplot(as.data.frame(results),
+       aes(x = results)) +
+  geom_density() +
+  labs(title = "Density of outcomes",
+       y = "Density",
+       x = "Score") +
+  seashell.theme
 
 
 # automatically predict outcomes based on which die to keep --------
@@ -147,11 +174,10 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   #the best choice of die to keep based on mean expected outcome of next roll
   #verbose prints a table of possible outcomes and plots the densities
   
- 
   # stop if no seed.roll is provided
   if (missing(seed.roll)) {stop("No seed roll provided; maybe you want to provide last.roll?")}
   
-  # keep 0, 1, 2, 3, 4, 5 dice, generate all combinations of new die, then calculate scores
+  # keep 0, 1, 2, 3, 4, 5 dice then generate all combinations of new die, then calculate scores
   results <- lapply(0:5, function(die.to.keep) {
 
     #different combinations of the original die to keep
@@ -160,25 +186,23 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
     #set up data then generate all possible permutations of the new roll
     reps <- replicate(5 - die.to.keep, 1:6, simplify = FALSE)
     new.perms <- expand.grid(reps) #generates all permutations of new die
-    new.perms <- lapply(1:nrow(new.perms), function(x){new.perms[x,] %>% as.numeric()}) #unlists the die
+    new.perms <- lapply(1:nrow(new.perms), function(x){new.perms[x,] %>% as.numeric()}) #modifies structure from DF to list
     
     #combine the base.roll combinations with the new permutations to generate
-    #all possible outcomes
+    #    all possible outcomes
     if (die.to.keep > 0) {
       new.rolls <- expand.grid(base.rolls, new.perms)
-      new.rolls <-
-        lapply(1:nrow(new.rolls), function(x) {
-          new.rolls[x, ] %>% unlist() %>% as.vector()
-        })
+      new.rolls <- lapply(1:nrow(new.rolls), function(x) {
+        new.rolls[x,] %>% unlist() %>% as.vector()
+      })
     } else
       new.rolls <- new.perms
     
-    #calculate the maxmium scores for each possible roll
+    #calculate the maximium scores for each possible roll
     max.scores <- mclapply(X = new.rolls,
                            FUN = calculate.score,
                            mc.cores = cpu.cores) %>% unlist()
 
-    
     #convert data to a clean data frame then return the results
     if (die.to.keep > 0) {
       base.rolls <- rep(base.rolls, length.out = length(new.rolls))
@@ -189,10 +213,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       base.rolls <- tibble(rep("Keep no dice", length(new.rolls))
       )
 
-    new.rolls <-
-      lapply(new.rolls, function(x) {
-        paste(x, collapse = "-")
-      }) %>% unlist() %>% enframe()
+    new.rolls <- lapply(new.rolls, function(x) {paste(x, collapse = "-")}) %>% unlist() %>% enframe()
     new.rolls$name <- die.to.keep
 
     max.scores <- max.scores %>% enframe() %>% select(value)
@@ -228,9 +249,13 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       geom_vline(aes(xintercept = Mean,
                      group = Die_to_keep),
                  colour = 'blue') +
-      labs(title = "Density of outcomes segmented by which die to keep",
+      labs(title = "Density of expected outcomes segmented by which die to keep",
+           subtitle = paste0("The original roll is ",
+                             paste(seed.roll, collapse = "-"),
+                             ". The blue verticle line represents the mean expected outcome."),
            y = "Density",
-           x = "Score")
+           x = "Score") +
+      seashell.theme
     
     print(summarized_results)
     print(plot)
@@ -244,8 +269,12 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   return(best_choice)
 }
 
+#test the function
+calculate.score(roll.results = NULL)
+calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 
-# roll the dice, calculate probabilities, choose best, roll again ---------
+
+# simulate a single Yahtzee round by rolling the dice, calculate probabilities, choose best, roll again ---------
 
 #first roll
 calculate.score(roll.results = NULL)
@@ -256,35 +285,45 @@ new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRU
 calculate.score(roll.results = new.roll)
 
 #third roll
-best_choice <- calculate.die.to.keep()
+best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
 calculate.score(roll.results = new.roll)
 
-
-# simulating and comparing it against random rolls
-sim.results <- rep(NA, 100)
-for (i in 1:100){
-  calculate.score()
+# simulating multiple rounds and comparing it against pure random rolls
+n.sims <- 50L
+sim.results <- rep(NA, n.sims)
+for (i in 1:n.sims){
+  #first roll
+  calculate.score(roll.results = NULL)
   
   #second roll
-  seed.roll <- last.roll %>% sort()
-  best_choice <- calculate.die.to.keep()
+  best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
   new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
   calculate.score(roll.results = new.roll)
   
   #third roll
-  seed.roll <- last.roll %>% sort()
-  best_choice <- calculate.die.to.keep()
+  best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
   new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
   sim.results[i] <- calculate.score(roll.results = new.roll)
 }
 
 #random rolls
-game.results <- replicate(100, calculate.score())
+game.results <- replicate(n.sims, calculate.score(roll.results = NULL))
 
-#comparison of the prediction function and random rolls
-tibble(Dumb = game.results, Smart = sim.results) %>%
+#comparison of the prediction function (Smart) and random rolls (Dumb)
+tibble(Smart = sim.results, Dumb = game.results) %>%
   gather(key = "Type", value = "Score") %>%
   ggplot(aes(x = Type, y = Score)) +
-    geom_boxplot()
+    geom_boxplot() +
+    annotate("text", label = "yahtzee roll after only 50 rolls",
+             x = 1.5, y = 45,
+             color = "gray20",
+             size = 4) +
+    labs(title = "Results from 'dumb' random rolls and optimized 'smart' rolls") +
+    geom_curve(
+      aes(x = 1.84, y = 45,
+          xend = 1.99, yend = 49),
+      arrow = arrow(length = unit(0.02, "npc")),
+      color = "gray40") +
+    seashell.theme
 
