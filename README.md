@@ -56,7 +56,7 @@ calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 
 ![](Expected_roll_outcomes.png)
 
-That looks great and seems like we should hold onto those three 6s. But is it really working? Let's run this a few more times and automatically choose our next roll based on the highest mean expected outcome (score). Then we can compare the results to just randomly rolling die.
+That looks great and seems like we should hold onto those three 6s (bottom right). But is it really working? Let's run this a few more times and automatically choose our next roll based on the highest mean expected outcome (i.e. the score). Then we can compare the results to just randomly rolling die.
 
 ![](Smart_vs_Dumb_boxplot.png)
 
