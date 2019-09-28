@@ -116,7 +116,7 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   
   if (verbose) {print(results)}
   
-  last.roll <<- roll.results
+  last.roll <<- sort(roll.results)
   
   best.result <- results[2:14, 2] %>% unlist() %>% as.integer() %>% max()
   
@@ -271,7 +271,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
 
 #test the function
 calculate.score(roll.results = NULL)
-calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
+calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
 
 
 # simulate a single Yahtzee round by rolling the dice, calculate probabilities, choose best, roll again ---------
@@ -280,12 +280,12 @@ calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 calculate.score(roll.results = NULL)
 
 #second roll
-best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
+best_choice <- calculate.die.to.keep(seed.roll = last.roll)
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
 calculate.score(roll.results = new.roll)
 
 #third roll
-best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
+best_choice <- calculate.die.to.keep(seed.roll = last.roll)
 new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
 calculate.score(roll.results = new.roll)
 
@@ -297,18 +297,18 @@ for (i in 1:n.sims){
   calculate.score(roll.results = NULL)
   
   #second roll
-  best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
+  best_choice <- calculate.die.to.keep(seed.roll = last.roll)
   new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
   calculate.score(roll.results = new.roll)
   
   #third roll
-  best_choice <- calculate.die.to.keep(seed.roll = sort(last.roll))
+  best_choice <- calculate.die.to.keep(seed.roll = last.roll)
   new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
   sim.results[i] <- calculate.score(roll.results = new.roll)
 }
 
 #random rolls
-game.results <- replicate(n.sims, calculate.score(roll.results = NULL))
+game.results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score()) %>% unlist()
 
 #comparison of the prediction function (Smart) and random rolls (Dumb)
 tibble(Smart = sim.results, Dumb = game.results) %>%

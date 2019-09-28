@@ -9,7 +9,7 @@ calculate.score(verbose = TRUE)
 # A tibble: 14 x 2
    Result         Score    
    <chr>          <chr>    
- 1 Roll results   1-6-6-6-2
+ 1 Roll results   1-2-6-6-6
  2 Ones           1        
  3 Twos           2        
  4 Threes         0        
@@ -26,12 +26,12 @@ calculate.score(verbose = TRUE)
 [1] 21
 ```
 
-Great. We rolled a '1-6-6-6-2' and can mark down 21 points. But this doesn't tell us what we should do next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
+Great. We rolled a '1-2-6-6-6' and can mark down 21 points. But this doesn't tell us what we should do next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
 
 `calculate.die.to.keep()`: function takes a roll, withholds a certain amount of die then calculates the probabilities of the expected outcomes. Repeats for each combination of die to withhold.
 
 ```
-calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
+calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
 # A tibble: 16 x 4
    Base_roll     Mean Median    SD
    <chr>        <dbl>  <dbl> <dbl>
@@ -56,7 +56,7 @@ calculate.die.to.keep(seed.roll = sort(last.roll), verbose = TRUE)
 
 ![](Expected_roll_outcomes.png)
 
-That looks great and seems like we should hold onto those three 6s (bottom right). But is it really working? Let's run this a few more times and automatically choose our next roll based on the highest mean expected outcome (i.e. the score). Then we can compare the results to just randomly rolling die.
+That looks great and seems like we should hold onto those three 6s (bottom right plot). But is it really working? Let's run this 50 more times and automatically choose our next roll based on the highest mean expected outcome (i.e. the score). Then we can compare the results to just randomly rolling die.
 
 ![](Smart_vs_Dumb_boxplot.png)
 
