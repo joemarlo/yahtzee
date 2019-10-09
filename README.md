@@ -1,6 +1,6 @@
 # Simulating Yahtzee and determining your next move
-`yahtzee-simulations.R`: R script that generates yahtzee simulations; sources `yahtzee-functions.R`
-`yahtzee-functions.R`: R script containing the core functions to simulate yahtzee and plots probabilistic outcomes
+`yahtzee-simulations.R`: R script that generates yahtzee simulations; sources `yahtzee-functions.R`\
+`yahtzee-functions.R`: R script containing the core functions to simulate yahtzee and plot probabilistic outcomes
 
 One of the core challenges when playing [yahtzee](https://en.wikipedia.org/wiki/Yahtzee) is determining which die to keep before throwing your second and third rolls. Plenty has been [written](http://mathworld.wolfram.com/Yahtzee.html) on the [probabilities](https://www.thoughtco.com/probability-of-rolling-a-yahtzee-3126593) of yahtzee rolls and [simulating](http://galsterhome.com/stats/Tutorial/SAS19.htm) [yahtzee](https://www.reddit.com/r/dataisbeautiful/comments/8vgxwl/simulating_10000_yahtzee_dice_throws_how_many/) outcomes. The goal of this script is to go one step further and optimize future rolls by determining likely outcomes after your first roll.
 

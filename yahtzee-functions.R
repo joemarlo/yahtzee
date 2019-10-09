@@ -187,7 +187,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
 
 mcreplicate <- function(n, expr, simplify = "array", ...) {
   
-  #function parallelizes replicate similar to how replicate uses lapply
+  #function parallelizes replicate similar to how replicate imitates lapply
   
   mclapply(integer(n), eval.parent(substitute(function(...) expr)), 
            simplify = simplify, mc.cores = cpu.cores)

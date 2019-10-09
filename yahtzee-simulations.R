@@ -59,7 +59,7 @@ new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRU
 calculate.score(roll.results = new.roll)
 
 # simulating multiple rounds and comparing it against pure random rolls
-n.sims <- 100L
+n.sims <- 500L
 sim.results <- rep(NA, n.sims)
 for (i in 1:n.sims){
   #first roll
