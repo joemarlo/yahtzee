@@ -2,6 +2,11 @@ library(tidyverse)
 library(combinat)
 library(parallel)
 
+source("ggplot_theme.R") #custom format for ggplot
+
+
+set.seed(80)
+
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
 # notes -------------------------------------------------------------------
@@ -25,6 +30,24 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # roll.results <- samp.fullhouse <- c(2,2,2,4,4)
 
 
+
+
+# helper functions for calculate.score ------------------------------------
+
+#calculate X of a kind
+calculate.kinds <- function(count, roll.results) {
+  
+  #function calculates the score for a given X of a kind
+  #e.g. count == 4 calculates score for four of a kind
+  
+  sapply(1:6, function(die.face) {
+    face.counts <- length(roll.results[roll.results == die.face])
+    kinds <- any(face.counts == count)
+    points <- kinds * sum(roll.results)
+    return(points)
+  }) %>% max()
+}
+
 # function to calculate score of a given roll --------------------------
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   
@@ -37,6 +60,9 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
     roll.results <- sample(6, 5, replace = TRUE)
   }
   
+  #sort results for ease of reading
+  roll.results <- sort(roll.results)
+  
   # upper section of the score sheet
   Ones <- sum(roll.results[roll.results == 1])
   Twos <- sum(roll.results[roll.results == 2])
@@ -45,22 +71,13 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   Fives <- sum(roll.results[roll.results == 5])
   Sixes <- sum(roll.results[roll.results == 6])
   
-  #of a kind
-  calculate.kinds <- function(count) {
-    sapply(1:6, function(x) {
-      face.counts <- length(roll.results[roll.results == x])
-      kinds <- any(face.counts == count)
-      points <- kinds * sum(roll.results)
-      return(points)
-    }) %>% max()
-  }
-  
-  three.of.kind <- calculate.kinds(3)
-  four.of.kind <- calculate.kinds(4)
-  yahtzee <- (calculate.kinds(5) > 0) * 50
+  three.of.kind <- calculate.kinds(count = 3, roll.results = roll.results)
+  four.of.kind <- calculate.kinds(count = 4, roll.results = roll.results)
+  yahtzee <- (calculate.kinds(count = 5, roll.results = roll.results) > 0) * 50
   
   #full house
-  full.house <- (calculate.kinds(2) > 0) * (calculate.kinds(3) > 0) * 25
+  full.house <-
+    (calculate.kinds(count = 2, roll.results = roll.results) > 0) * (calculate.kinds(count = 3, roll.results = roll.results) > 0) * 25
   
   #straights
     #sorted roll.results
@@ -115,11 +132,8 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   )
   
   if (verbose) {print(results)}
-  
-  last.roll <<- sort(roll.results)
-  
+  last.roll <<- roll.results
   best.result <- results[2:14, 2] %>% unlist() %>% as.integer() %>% max()
-  
   return(best.result)
 }
 
@@ -143,27 +157,19 @@ results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score(
 rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
 results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores) %>% unlist()
 
-#theme for ggplot
-seashell.theme <- theme(legend.position = "none",
-                        panel.grid.minor = element_line(color = NA),
-                        panel.background = element_rect(fill = "seashell2"),
-                        plot.background = element_rect(fill = "seashell",
-                                                       color = NA),
-                        axis.title = element_text(color = "gray30",
-                                                  size = 12),
-                        strip.background = element_rect(fill = "seashell3"),
-                        plot.title = element_text(color = "gray30",
-                                                  size = 14,
-                                                  face = "bold"))
+
+
+
 
 #density plot of score results
-ggplot(as.data.frame(results),
-       aes(x = results)) +
+as.data.frame(results) %>%
+  ggplot(aes(x = results)) +
   geom_density() +
   labs(title = "Density of outcomes",
        y = "Density",
        x = "Score") +
   seashell.theme
+
 
 
 # automatically predict outcomes based on which die to keep --------
@@ -263,10 +269,13 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   }
 
   #pick the best choice based on expected outcome
-  best_choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>% pull()
-  best_choice <- str_split(best_choice, "-") %>% lapply(., as.numeric) %>% unlist()
+  best.choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>%
+    pull() %>%
+    str_split(., "-") %>%
+    lapply(., as.numeric) %>%
+    unlist()
 
-  return(best_choice)
+  return(best.choice)
 }
 
 #test the function
@@ -280,13 +289,13 @@ calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
 calculate.score(roll.results = NULL)
 
 #second roll
-best_choice <- calculate.die.to.keep(seed.roll = last.roll)
-new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
+best.choice <- calculate.die.to.keep(seed.roll = last.roll)
+new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
 calculate.score(roll.results = new.roll)
 
 #third roll
-best_choice <- calculate.die.to.keep(seed.roll = last.roll)
-new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
+best.choice <- calculate.die.to.keep(seed.roll = last.roll)
+new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
 calculate.score(roll.results = new.roll)
 
 # simulating multiple rounds and comparing it against pure random rolls
@@ -297,13 +306,13 @@ for (i in 1:n.sims){
   calculate.score(roll.results = NULL)
   
   #second roll
-  best_choice <- calculate.die.to.keep(seed.roll = last.roll)
-  new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
+  best.choice <- calculate.die.to.keep(seed.roll = last.roll)
+  new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
   calculate.score(roll.results = new.roll)
   
   #third roll
-  best_choice <- calculate.die.to.keep(seed.roll = last.roll)
-  new.roll <- append(best_choice, sample(6, 5 - length(best_choice), replace = TRUE))
+  best.choice <- calculate.die.to.keep(seed.roll = last.roll)
+  new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
   sim.results[i] <- calculate.score(roll.results = new.roll)
 }
 
@@ -326,4 +335,3 @@ tibble(Smart = sim.results, Dumb = game.results) %>%
       arrow = arrow(length = unit(0.02, "npc")),
       color = "gray40") +
     seashell.theme
-
