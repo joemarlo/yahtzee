@@ -2,7 +2,7 @@ library(tidyverse)
 library(parallel)
 source("yahtzee-functions.R") #core functions for gameplay
 
-set.seed(80)
+set.seed(65)
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
 
@@ -22,16 +22,11 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 calculate.score(verbose = TRUE)
 calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
 
-
 # simulate roll outcomes  -------------------------------------------
 
 #simulate many rolls
 n.sims <- 10000L
 results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score()) %>% unlist()
-
-# for testing -- seperate die rolls from results
-rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
-results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores) %>% unlist()
 
 #density plot of score results
 as.data.frame(results) %>%
@@ -39,27 +34,17 @@ as.data.frame(results) %>%
   geom_density() +
   labs(title = "Density of outcomes",
        y = "Density",
-       x = "Score") +
+       x = "Yahtzee score") +
   seashell.theme
 
+# for testing -- seperate die rolls from results
+rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
+results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores) %>% unlist()
 
 # simulate a single Yahtzee round by rolling the dice, calculate probabilities, choose best, roll again ---------
 
-#first roll
-calculate.score(roll.results = NULL)
-
-#second roll
-best.choice <- calculate.die.to.keep(seed.roll = last.roll)
-new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
-calculate.score(roll.results = new.roll)
-
-#third roll
-best.choice <- calculate.die.to.keep(seed.roll = last.roll)
-new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
-calculate.score(roll.results = new.roll)
-
-# simulating multiple rounds and comparing it against pure random rolls
-n.sims <- 500L
+# simulating multiple rounds
+n.sims <- 500L #i.e. number of 3-roll rounds to simulate
 sim.results <- rep(NA, n.sims)
 for (i in 1:n.sims){
   #first roll
@@ -84,5 +69,12 @@ tibble(Smart = sim.results, Dumb = game.results) %>%
   gather(key = "Type", value = "Score") %>%
   ggplot(aes(x = Type, y = Score)) +
   geom_boxplot() +
-  labs(title = "Results from 'dumb' random rolls and optimized 'smart' rolls") +
+  stat_summary(fun.y = mean, geom = "errorbar",
+               aes(ymax = ..y.., ymin = ..y..),
+               width = .75, linetype = "dashed") +
+  labs(title = "Results from 'dumb' random rolls and optimized 'smart' rolls",
+       subtitle = paste0(scales::comma(n.sims), " simulations each"),
+       x = "",
+       y = "Yahtzee score") +
   seashell.theme
+

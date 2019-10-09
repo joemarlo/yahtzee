@@ -6,7 +6,6 @@ source("ggplot-theme.R") #custom format for ggplot
 
 # function to calculate score of a given roll --------------------------
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
-
   #function returns the maximum score for a random dice throw
   #if no roll is provided (roll.results) then a roll is randomly generated
   #verbose argument prints out the score sheet
@@ -27,7 +26,7 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   Fives <- roll.results[roll.results == 5]
   Sixes <- roll.results[roll.results == 6]
 
-  #count of each face
+  #calculate frequency of each die
   counts <- sapply(list(Ones, Twos, Threes, Fours, Fives, Sixes), length)
 
   #find unique number of faces then check for kinds
@@ -46,9 +45,6 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   #calculate if there is a large straight by checking if the die match 1:5
   straight5 <- all(1:5 %in% roll.results) * 40
 
-  #sum of the parts
-  chance <- sum(roll.results)
-
   #results
   results <- tribble(
     ~ Result, ~ Score,
@@ -64,7 +60,7 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
     "Full house", full.house,
     "Small straight", straight4,
     "Large straight", straight5,
-    "Chance", chance,
+    "Chance", sum(roll.results),
     "YAHTZEE", yahtzee
   )
 
@@ -80,14 +76,16 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
 
 calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   #function takes a current roll (seed.roll), calculates all potential combinations of die to keep,
-  #then calculates the expected outcome for each combination, then returns
-  #the best choice of die to keep based on mean expected outcome of next roll
+  #then calculates the expected outcome for each combination,
+  #then returns the best choice of die to keep based on mean expected outcome of next roll
   #verbose prints a table of possible outcomes and plots the densities
 
   # stop if no seed.roll is provided
   if (missing(seed.roll)) {stop("No seed roll provided; maybe you want to provide last.roll?")}
 
-  # keep 0, 1, 2, 3, 4, 5 dice then generate all combinations of new die, then calculate scores
+  # withhold 0, 1, 2, 3, 4, or 5 dice from the seed.roll then generate all combinations of new die
+  # returns a data frame containing a row per each new permutation and its respective score
+  # rows are also labeled according to which die were withheld (i.e. kept)
   results <- lapply(0:5, function(die.to.keep) {
 
     #different combinations of the original die to keep
@@ -95,8 +93,9 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
 
     #set up data then generate all possible permutations of the new roll
     reps <- replicate(5 - die.to.keep, 1:6, simplify = FALSE)
-    new.perms <- expand.grid(reps) #generates all permutations of new die
-    new.perms <- lapply(1:nrow(new.perms), function(x){new.perms[x,] %>% as.numeric()}) #modifies structure from DF to list
+    new.perms <- expand.grid(reps) #generate all permutations of new die
+    #modify structure from DF to list
+    new.perms <- lapply(1:nrow(new.perms), function(x){new.perms[x,] %>% as.numeric()})
 
     #combine the base.roll combinations with the new permutations to generate
     #    all possible outcomes
@@ -120,14 +119,16 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
         paste(x, collapse = "-")
       }) %>% unlist() %>% enframe() %>% select(value)
     } else
-      base.rolls <- tibble(rep("Keep no dice", length(new.rolls))
-      )
-
+      base.rolls <- tibble(rep("Keep no dice", length(new.rolls)))
+    
+    #convert new rolls to a character string then place in data frame
     new.rolls <- lapply(new.rolls, function(x) {paste(x, collapse = "-")}) %>% unlist() %>% enframe()
-    new.rolls$name <- die.to.keep
+    new.rolls$name <- die.to.keep #label the rows by how many die were kept
 
     max.scores <- max.scores %>% enframe() %>% select(value)
 
+    #build one data frame of the results containing the base rolls, the
+    #    new roll permutations and the scores from those rolls
     results <- bind_cols(base.rolls, new.rolls, max.scores)
     names(results) <- c("Base_roll", "Die_to_keep", "Roll", "Max_score")
     results <- results %>% select(Die_to_keep, Base_roll, Roll, Max_score)
@@ -136,7 +137,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
 
   }) %>% bind_rows()
 
-  #summary results per category and plot
+  #summarize the results per base roll
   summarized_results <- results %>%
     group_by(Base_roll) %>%
     summarize(
@@ -146,6 +147,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
     ) %>%
     arrange(desc(Mean, Median, SD))
 
+  #print and plot the results
   if (verbose) {
     plot <- results %>%
       group_by(Base_roll) %>%
@@ -164,7 +166,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
                              paste(seed.roll, collapse = "-"),
                              ". The blue verticle line represents the mean expected outcome."),
            y = "Density",
-           x = "Score") +
+           x = "Yahtzee score") +
       seashell.theme
 
     print(summarized_results)
@@ -172,7 +174,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
 
   }
 
-  #pick the best choice based on expected outcome
+  #pick the best choice based on mean expected outcome
   best.choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>%
     pull() %>%
     str_split(., "-") %>%
@@ -186,8 +188,8 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
 # function to parallelize replicate ---------------------------------------
 
 mcreplicate <- function(n, expr, simplify = "array", ...) {
-  
-  #function parallelizes replicate similar to how replicate imitates lapply
+  #function parallelizes replicate by imitating mclapply
+  #this is similar to how replicate imitates lapply
   
   mclapply(integer(n), eval.parent(substitute(function(...) expr)), 
            simplify = simplify, mc.cores = cpu.cores)
