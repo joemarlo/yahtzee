@@ -1,5 +1,6 @@
 # Simulating Yahtzee and determining your next move
-`yahtzee.R`: R script that generates yahtzee roll simulations and plots probabilistic outcomes
+`yahtzee-simulations.R`: R script that generates yahtzee simulations; sources `yahtzee-functions.R`
+`yahtzee-functions.R`: R script containing the core functions to simulate yahtzee and plots probabilistic outcomes
 
 One of the core challenges when playing [yahtzee](https://en.wikipedia.org/wiki/Yahtzee) is determining which die to keep before throwing your second and third rolls. Plenty has been [written](http://mathworld.wolfram.com/Yahtzee.html) on the [probabilities](https://www.thoughtco.com/probability-of-rolling-a-yahtzee-3126593) of yahtzee rolls and [simulating](http://galsterhome.com/stats/Tutorial/SAS19.htm) [yahtzee](https://www.reddit.com/r/dataisbeautiful/comments/8vgxwl/simulating_10000_yahtzee_dice_throws_how_many/) outcomes. The goal of this script is to go one step further and optimize future rolls by determining likely outcomes after your first roll.
 
@@ -9,21 +10,21 @@ calculate.score(verbose = TRUE)
 # A tibble: 14 x 2
    Result         Score    
    <chr>          <chr>    
- 1 Roll results   1-2-6-6-6
+ 1 Roll results   1-3-3-3-6
  2 Ones           1        
- 3 Twos           2        
- 4 Threes         0        
+ 3 Twos           0        
+ 4 Threes         9        
  5 Fours          0        
  6 Fives          0        
- 7 Sixes          18       
- 8 3 of a kind    21       
+ 7 Sixes          6       
+ 8 3 of a kind    16       
  9 4 of a kind    0        
 10 Full house     0        
 11 Small straight 0        
 12 Large straight 0        
-13 Chance         21       
+13 Chance         16       
 14 YAHTZEE        0        
-[1] 21
+[1] 16
 ```
 
 Great. We rolled a '1-2-6-6-6' and can mark down 21 points. But this doesn't tell us what we should do next. Is this a great roll and we should keep the 21 points? Or should we keep all three 6s and roll the remaining two dice?
