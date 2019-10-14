@@ -5,7 +5,6 @@ source("yahtzee-functions.R") #core functions for gameplay
 set.seed(65)
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
-
 # notes -------------------------------------------------------------------
 # there is a global variable "last.roll" that is updated after each call to calculate.score()
 # yahtzee rule book here: https://www.hasbro.com/common/documents/dad2af551c4311ddbd0b0800200c9a66/8302F43150569047F57EB8D746BA9D86.pdf
@@ -22,6 +21,12 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 calculate.score(verbose = TRUE)
 calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
 
+# ggsave(filename = "Expected_roll_outcomes.svg",
+#        plot = last_plot(),
+#        device = "svg",
+#        width = 8,
+#        height = 7)
+
 # simulate roll outcomes  -------------------------------------------
 
 #simulate many rolls
@@ -32,10 +37,10 @@ results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score(
 as.data.frame(results) %>%
   ggplot(aes(x = results)) +
   geom_density() +
-  labs(title = "Density of outcomes",
+  labs(title = "Density of scores",
        y = "Density",
        x = "Yahtzee score") +
-  seashell.theme
+  light.theme
 
 # for testing -- seperate die rolls from results
 rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
@@ -68,13 +73,19 @@ game.results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.s
 tibble(Smart = sim.results, Dumb = game.results) %>%
   gather(key = "Type", value = "Score") %>%
   ggplot(aes(x = Type, y = Score)) +
-  geom_boxplot() +
+  geom_boxplot(fill = "gray95") +
   stat_summary(fun.y = mean, geom = "errorbar",
                aes(ymax = ..y.., ymin = ..y..),
-               width = .75, linetype = "dashed") +
+               width = .75, linetype = "dashed",
+               color = "#2b7551") +
   labs(title = "Results from 'dumb' random rolls and optimized 'smart' rolls",
        subtitle = paste0(scales::comma(n.sims), " simulations each"),
        x = "",
        y = "Yahtzee score") +
-  seashell.theme
+  light.theme
 
+# ggsave(filename = "Smart_vs_Dumb_boxplot.svg",
+#        plot = last_plot(),
+#        device = "svg",
+#        width = 8,
+#        height = 6)

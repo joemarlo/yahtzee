@@ -57,13 +57,13 @@ Great. We rolled a '2-3-6-6-6' and can mark down 23 points. But this doesn't tel
 ```
 
 <p align="center">
-<img src="Expected_roll_outcomes.png" width="700">
+<img src="Expected_roll_outcomes.svg" width= 80%>
 </p>
 
 That looks great and seems like we should hold onto those three 6s (bottom right plot). But is it really working? Let's run this 500 more times and automatically choose our next roll based on the highest mean expected outcome. Then we can compare the results to just randomly rolling die.
 
 <p align="center">
-<img src="Smart_vs_Dumb_boxplot.png" width="700">
+<img src="Smart_vs_Dumb_boxplot.svg" width= 80%>
 </p>
 
 ## To-do list

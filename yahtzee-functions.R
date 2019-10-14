@@ -160,14 +160,15 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       facet_wrap( ~ Base_roll) +
       geom_vline(aes(xintercept = Mean,
                      group = Die_to_keep),
-                 colour = 'blue') +
+                 color = '#2b7551',
+                 size = 1.2) +
       labs(title = "Density of expected outcomes segmented by which die to keep",
            subtitle = paste0("The original roll is ",
                              paste(seed.roll, collapse = "-"),
-                             ". The blue verticle line represents the mean expected outcome."),
+                             ". The green verticle line represents the mean expected outcome."),
            y = "Density",
            x = "Yahtzee score") +
-      seashell.theme
+      light.theme
 
     print(summarized_results)
     print(plot)
