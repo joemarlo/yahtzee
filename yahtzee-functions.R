@@ -6,7 +6,7 @@ source("ggplot-theme.R") #custom format for ggplot
 
 # function to calculate score of a given roll --------------------------
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
-  #function returns the maximum score for a random dice throw
+  #function returns the maximum score for a dice throw
   #if no roll is provided (roll.results) then a roll is randomly generated
   #verbose argument prints out the score sheet
 
@@ -39,11 +39,11 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   #full house
   full.house <- (two.of.kind & (three.of.kind > 0)) * 25
 
-  #calculate if there is a small straight by checking if the die match either 1:4 or 2:5
-  straight4 <- (all(1:4 %in% roll.results) | all(2:5 %in% roll.results)) * 30
+  #calculate if there is a small straight by checking if the die match either 1:4 or 2:5 or 3:6
+  straight4 <- (all(1:4 %in% roll.results) | all(2:5 %in% roll.results) | all(3:6 %in% roll.results)) * 30
 
-  #calculate if there is a large straight by checking if the die match 1:5
-  straight5 <- all(1:5 %in% roll.results) * 40
+  #calculate if there is a large straight by checking if the die match 1:5 or 2:6
+  straight5 <- (all(1:5 %in% roll.results) | all(2:6 %in% roll.results))  * 40
 
   #results
   results <- tribble(
