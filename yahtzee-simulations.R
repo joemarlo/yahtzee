@@ -87,8 +87,9 @@ tibble(Smart = sim.results, Dumb = game.results) %>%
        y = "Yahtzee score") +
   light.theme
 
-ggsave(filename = "Plots/Smart_vs_Dumb_boxplot.svg",
-       plot = last_plot(),
-       device = "svg",
-       width = 8,
-       height = 6)
+# ggsave(filename = "Plots/Smart_vs_Dumb_boxplot.svg",
+#        plot = last_plot(),
+#        device = "svg",
+#        width = 8,
+#        height = 6)
+

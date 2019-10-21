@@ -86,7 +86,8 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   # withhold 0, 1, 2, 3, 4, or 5 dice from the seed.roll then generate all combinations of new die
   # returns a data frame containing a row per each new permutation and its respective score
   # rows are also labeled according to which die were withheld (i.e. kept)
-  results <- lapply(0:5, function(die.to.keep) {
+  
+  results <- mclapply(X = 0:5, mc.cores = cpu.cores, FUN = function(die.to.keep) {
 
     #different combinations of the original die to keep
     base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE) %>% lapply(., sort)
@@ -110,9 +111,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       new.rolls <- new.perms
 
     #calculate the maximium scores for each possible roll
-    max.scores <- mclapply(X = new.rolls,
-                           FUN = calculate.score,
-                           mc.cores = cpu.cores) %>% unlist()
+    max.scores <- lapply(X = new.rolls, FUN = calculate.score) %>% unlist()
 
     #convert data to a clean data frame then return the results
     if (die.to.keep > 0) {
