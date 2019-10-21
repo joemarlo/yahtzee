@@ -13,7 +13,6 @@ roll.5.dice <- function() sample(6, 5, replace = TRUE) %>% sort()
 
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   #function returns the maximum score for a dice throw
-  #if no roll is provided (roll.results) then a roll is randomly generated
   #verbose argument prints out the score sheet
 
   # stop if no seed.roll is provided
