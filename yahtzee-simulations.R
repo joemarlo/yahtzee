@@ -1,12 +1,11 @@
 library(tidyverse)
 library(parallel)
-source("Plots/yahtzee-functions.R") #core functions for gameplay
+source("yahtzee-functions.R") #core functions for gameplay
 
 set.seed(65)
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
 # notes -------------------------------------------------------------------
-# there is a global variable "last.roll" that is updated after each call to calculate.score()
 
 # sample rolls for testing
 # roll.results <- samp.two.kind <- c(1,1,3,4,6)
@@ -17,9 +16,11 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # roll.results <- samp.5straight <- c(3,4,5,1,2)
 # roll.results <- samp.fullhouse <- c(2,2,2,4,4)
 
+
 #test the sourced functions
-calculate.score(verbose = TRUE)
-calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
+roll <- roll.5.dice()
+calculate.score(roll.results = roll, verbose = TRUE)
+calculate.die.to.keep(seed.roll = roll, verbose = TRUE)
 calculate.die.to.keep(seed.roll = c(2, 2, 4, 5, 2), verbose = TRUE)
 
 # ggsave(filename = "Plots/Expected_roll_outcomes.svg",
@@ -32,7 +33,7 @@ calculate.die.to.keep(seed.roll = c(2, 2, 4, 5, 2), verbose = TRUE)
 
 #simulate many rolls
 n.sims <- 10000L
-results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score()) %>% unlist()
+results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score(roll.5.dice())) %>% unlist()
 
 #density plot of score results
 as.data.frame(results) %>%
@@ -44,7 +45,7 @@ as.data.frame(results) %>%
   light.theme
 
 # for testing -- seperate die rolls from results
-rolls <- replicate(n.sims, sample(6, 5, T), simplify = F)
+rolls <- replicate(n.sims, roll.5.dice(), simplify = F)
 results <- mclapply(X = rolls, FUN = calculate.score, mc.cores = cpu.cores) %>% unlist()
 
 # simulate a single Yahtzee round by rolling the dice, calculate probabilities, choose best, roll again ---------
@@ -54,21 +55,20 @@ n.sims <- 500L #i.e. number of 3-roll rounds to simulate
 sim.results <- rep(NA, n.sims)
 for (i in 1:n.sims){
   #first roll
-  calculate.score(roll.results = NULL)
+  first.roll <- roll.5.dice()
+  best.choice <- calculate.die.to.keep(seed.roll = first.roll)
   
   #second roll
-  best.choice <- calculate.die.to.keep(seed.roll = last.roll)
-  new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
-  calculate.score(roll.results = new.roll)
+  second.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
+  best.choice <- calculate.die.to.keep(seed.roll = second.roll)
   
   #third roll
-  best.choice <- calculate.die.to.keep(seed.roll = last.roll)
-  new.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
-  sim.results[i] <- calculate.score(roll.results = new.roll)
+  third.roll <- append(best.choice, sample(6, 5 - length(best.choice), replace = TRUE))
+  sim.results[i] <- calculate.score(roll.results = third.roll)
 }
 
 #random rolls
-game.results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score()) %>% unlist()
+game.results <- mcreplicate(n = n.sims, mc.cores = cpu.cores, expr = calculate.score(roll.5.dice())) %>% unlist()
 
 #comparison of the prediction function (Smart) and random rolls (Dumb)
 tibble(Smart = sim.results, Dumb = game.results) %>%

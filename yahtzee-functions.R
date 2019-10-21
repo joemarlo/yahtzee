@@ -4,20 +4,24 @@ library(parallel)
 source("Plots/ggplot-theme.R") #custom format for ggplot
 
 
+# function to calculate roll ----------------------------------------------
+
+roll.5.dice <- function() sample(6, 5, replace = TRUE) %>% sort()
+
+
 # function to calculate score of a given roll --------------------------
+
 calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   #function returns the maximum score for a dice throw
   #if no roll is provided (roll.results) then a roll is randomly generated
   #verbose argument prints out the score sheet
 
-  #roll 5 die if none are provided
-  if (is.null(roll.results)) {
-    roll.results <- sample(6, 5, replace = TRUE)
-  }
+  # stop if no seed.roll is provided
+  if (missing(roll.results)) {stop("No roll.results provided; maybe you want to call roll.5.dice?")}
 
-  #sort results for ease of reading
+  # sort seed.roll for readability
   roll.results <- sort(roll.results)
-
+  
   #grab the number of die per face
   Ones <- roll.results[roll.results == 1]
   Twos <- roll.results[roll.results == 2]
@@ -65,7 +69,6 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
   )
 
   if (verbose) {print(results)}
-  last.roll <<- roll.results
   best.result <- results[2:14, 2] %>% unlist() %>% as.integer() %>% max()
   return(best.result)
 }
@@ -83,11 +86,14 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   # stop if no seed.roll is provided
   if (missing(seed.roll)) {stop("No seed roll provided; maybe you want to provide last.roll?")}
 
+  # sort seed.roll for readability
+  seed.roll <- sort(seed.roll)
+  
   # withhold 0, 1, 2, 3, 4, or 5 dice from the seed.roll then generate all combinations of new die
   # returns a data frame containing a row per each new permutation and its respective score
   # rows are also labeled according to which die were withheld (i.e. kept)
   
-  results <- mclapply(X = 0:5, mc.cores = cpu.cores, FUN = function(die.to.keep) {
+  results <- mclapply(X = 0:5, mc.cores = cpu.cores,  FUN = function(die.to.keep) {
 
     #different combinations of the original die to keep
     base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE) %>% lapply(., sort)
