@@ -1,7 +1,7 @@
 library(tidyverse)
 library(combinat)
 library(parallel)
-source("ggplot-theme.R") #custom format for ggplot
+source("Plots/ggplot-theme.R") #custom format for ggplot
 
 
 # function to calculate score of a given roll --------------------------
@@ -89,7 +89,9 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   results <- lapply(0:5, function(die.to.keep) {
 
     #different combinations of the original die to keep
-    base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE)
+    base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE) %>% lapply(., sort)
+    #remove duplicates
+    base.rolls <- base.rolls[!duplicated(base.rolls)]
 
     #set up data then generate all possible permutations of the new roll
     reps <- replicate(5 - die.to.keep, 1:6, simplify = FALSE)

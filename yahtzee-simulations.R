@@ -1,13 +1,13 @@
 library(tidyverse)
 library(parallel)
-source("yahtzee-functions.R") #core functions for gameplay
+source("Plots/yahtzee-functions.R") #core functions for gameplay
 
 set.seed(65)
 cpu.cores <- detectCores() #number of cores available for parallel processing
 
 # notes -------------------------------------------------------------------
 # there is a global variable "last.roll" that is updated after each call to calculate.score()
-# yahtzee rule book here: https://www.hasbro.com/common/documents/dad2af551c4311ddbd0b0800200c9a66/8302F43150569047F57EB8D746BA9D86.pdf
+
 # sample rolls for testing
 # roll.results <- samp.two.kind <- c(1,1,3,4,6)
 # roll.results <- samp.three.kind <- c(2,3,4,4,4)
@@ -20,8 +20,9 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 #test the sourced functions
 calculate.score(verbose = TRUE)
 calculate.die.to.keep(seed.roll = last.roll, verbose = TRUE)
+calculate.die.to.keep(seed.roll = c(2, 2, 4, 5, 2), verbose = TRUE)
 
-# ggsave(filename = "Expected_roll_outcomes.svg",
+# ggsave(filename = "Plots/Expected_roll_outcomes.svg",
 #        plot = last_plot(),
 #        device = "svg",
 #        width = 8,
@@ -78,14 +79,16 @@ tibble(Smart = sim.results, Dumb = game.results) %>%
                aes(ymax = ..y.., ymin = ..y..),
                width = .75, linetype = "dashed",
                color = "#2b7551") +
-  labs(title = "Results from 'dumb' random rolls and optimized 'smart' rolls",
-       subtitle = paste0(scales::comma(n.sims), " simulations each"),
+  labs(title = "'Dumb' random rolls and optimized 'smart' rolls",
+       subtitle = paste0("Results from ",
+                         scales::comma(n.sims),
+                         " simulations each"),
        x = "",
        y = "Yahtzee score") +
   light.theme
 
-# ggsave(filename = "Smart_vs_Dumb_boxplot.svg",
-#        plot = last_plot(),
-#        device = "svg",
-#        width = 8,
-#        height = 6)
+ggsave(filename = "Plots/Smart_vs_Dumb_boxplot.svg",
+       plot = last_plot(),
+       device = "svg",
+       width = 8,
+       height = 6)
