@@ -209,12 +209,16 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   }
   
   #pick the best choice based on mean expected outcome
-  best.choice <-
-    summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>%
-    pull() %>%
-    str_split(., "-") %>%
-    unlist() %>%
-    as.integer()
+  best.choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>% pull()
+  # return NULL if "Keep no dice" is the best result; otherwise return the rolls as integers
+  if (best.choice == "Keep no dice"){
+    best.choice <- NULL
+  } else{
+    best.choice <- best.choice %>%
+      str_split(., "-") %>%
+      unlist() %>%
+      as.integer()
+  }
   
   return(best.choice)
 }
