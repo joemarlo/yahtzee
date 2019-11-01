@@ -76,15 +76,41 @@ calculate.score <- function(roll.results = NULL, verbose = FALSE) {
 
 # automatically predict outcomes based on which die to keep --------
 
+#calculate the scores by first creating a dataframe of all possible combinations
+# then appling calculate.score() over it. This method minimizes the calls to 
+# calculate.score()
+
+#set up data then generate all possible permutations of the new roll
+reps <- replicate(5, 1:6, simplify = FALSE)
+perms <- expand.grid(reps) #generate all permutations of new die
+#modify structure from DF to list
+perms <- lapply(1:nrow(perms), function(x) {
+  perms[x, ] %>% as.integer()
+})
+#add in the score for each perm and unlist the Roll
+# this data.frame is the "master list" of the scores
+all.scores <- tibble(perms) %>%
+  rename(Roll = perms) %>%
+  rowwise() %>%
+  mutate(Max_score = calculate.score(Roll),
+         Roll = paste(Roll, collapse = "-") %>% unlist()) %>%
+  ungroup()
+rm(reps, perms)
+
+
 calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
+  
   #function takes a current roll (seed.roll), calculates all potential combinations of die to keep,
   #then calculates the expected outcome for each combination,
   #then returns the best choice of die to keep based on mean expected outcome of next roll
   #verbose prints a table of possible outcomes and plots the densities
-
+  #the function depends on the all.scores data.frame
+  
   # stop if no seed.roll is provided
-  if (missing(seed.roll)) {stop("No seed roll provided; maybe you want to provide last.roll?")}
-
+  if (missing(seed.roll)) {
+    stop("No seed roll provided; maybe you want to provide last.roll?")
+  }
+  
   # sort seed.roll for readability
   seed.roll <- sort(seed.roll)
   
@@ -92,32 +118,30 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
   # returns a data frame containing a row per each new permutation and its respective score
   # rows are also labeled according to which die were withheld (i.e. kept)
   
-  results <- mclapply(X = 0:5, mc.cores = cpu.cores,  FUN = function(die.to.keep) {
-
+  results <- mclapply(X = 0:5, mc.cores = cpu.cores, FUN = function(die.to.keep) {
     #different combinations of the original die to keep
     base.rolls <- combn(seed.roll, die.to.keep, simplify = FALSE) %>% lapply(., sort)
     #remove duplicates
     base.rolls <- base.rolls[!duplicated(base.rolls)]
-
+    
     #set up data then generate all possible permutations of the new roll
     reps <- replicate(5 - die.to.keep, 1:6, simplify = FALSE)
     new.perms <- expand.grid(reps) #generate all permutations of new die
     #modify structure from DF to list
-    new.perms <- lapply(1:nrow(new.perms), function(x){new.perms[x,] %>% as.numeric()})
-
+    new.perms <- lapply(1:nrow(new.perms), function(x) {
+      new.perms[x, ] %>% as.numeric()
+    })
+    
     #combine the base.roll combinations with the new permutations to generate
     #    all possible outcomes
     if (die.to.keep > 0) {
       new.rolls <- expand.grid(base.rolls, new.perms)
       new.rolls <- lapply(1:nrow(new.rolls), function(x) {
-        new.rolls[x,] %>% unlist() %>% as.vector()
+        new.rolls[x, ] %>% unlist() %>% as.numeric()
       })
     } else
       new.rolls <- new.perms
-
-    #calculate the maximium scores for each possible roll
-    max.scores <- lapply(X = new.rolls, FUN = calculate.score) %>% unlist()
-
+    
     #convert data to a clean data frame then return the results
     if (die.to.keep > 0) {
       base.rolls <- rep(base.rolls, length.out = length(new.rolls))
@@ -128,21 +152,25 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       base.rolls <- tibble(rep("Keep no dice", length(new.rolls)))
     
     #convert new rolls to a character string then place in data frame
-    new.rolls <- lapply(new.rolls, function(x) {paste(x, collapse = "-")}) %>% unlist() %>% enframe()
-    new.rolls$name <- die.to.keep #label the rows by how many die were kept
-
-    max.scores <- max.scores %>% enframe() %>% select(value)
-
+    new.rolls <- lapply(new.rolls, function(x) {
+      paste(x, collapse = "-")
+    }) %>% unlist() %>% enframe()
+    #label the rows by how many die were kept
+    new.rolls$name <- die.to.keep
+    
     #build one data frame of the results containing the base rolls, the
-    #    new roll permutations and the scores from those rolls
-    results <- bind_cols(base.rolls, new.rolls, max.scores)
-    names(results) <- c("Base_roll", "Die_to_keep", "Roll", "Max_score")
-    results <- results %>% select(Die_to_keep, Base_roll, Roll, Max_score)
-
+    #  new roll permutations and the scores from those rolls
+    results <- bind_cols(base.rolls, new.rolls)
+    names(results) <- c("Base_roll", "Die_to_keep", "Roll")
+    results <- results %>% select(Die_to_keep, Base_roll, Roll)
+    
     return(results)
-
+    
   }) %>% bind_rows()
-
+  
+  #add in the scores to the results
+  results <- left_join(results, all.scores, by = "Roll")
+  
   #summarize the results per base roll
   summarized_results <- results %>%
     group_by(Base_roll) %>%
@@ -152,7 +180,7 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       SD = sd(Max_score)
     ) %>%
     arrange(desc(Mean, Median, SD))
-
+  
   #print and plot the results
   if (verbose) {
     plot <- results %>%
@@ -163,9 +191,8 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
       ggplot(aes(x = Max_score)) +
       # geom_histogram(binwidth = 1, color = "white") +
       geom_density() +
-      facet_wrap( ~ Base_roll) +
-      geom_vline(aes(xintercept = Mean,
-                     group = Die_to_keep),
+      facet_wrap(~ Base_roll) +
+      geom_vline(aes(xintercept = Mean, group = Die_to_keep),
                  color = '#2b7551',
                  size = 1.2) +
       labs(title = "Density of expected outcomes segmented by which die to keep",
@@ -175,19 +202,20 @@ calculate.die.to.keep <- function(seed.roll, verbose = FALSE) {
            y = "Density",
            x = "Yahtzee score") +
       light.theme
-
+    
     print(summarized_results)
     print(plot)
-
+    
   }
-
+  
   #pick the best choice based on mean expected outcome
-  best.choice <- summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>%
+  best.choice <-
+    summarized_results[which.max(summarized_results$Mean), "Base_roll"] %>%
     pull() %>%
     str_split(., "-") %>%
-    lapply(., as.numeric) %>%
-    unlist()
-
+    unlist() %>%
+    as.integer()
+  
   return(best.choice)
 }
 

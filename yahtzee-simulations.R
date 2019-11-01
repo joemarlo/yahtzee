@@ -16,6 +16,7 @@ cpu.cores <- detectCores() #number of cores available for parallel processing
 # roll.results <- samp.5straight <- c(3,4,5,1,2)
 # roll.results <- samp.fullhouse <- c(2,2,2,4,4)
 
+# #test the sourced functions ---------------------------------------------
 
 #test the sourced functions
 roll <- roll.5.dice()
@@ -28,6 +29,7 @@ calculate.die.to.keep(seed.roll = c(2, 2, 4, 5, 2), verbose = TRUE)
 #        device = "svg",
 #        width = 8,
 #        height = 7)
+
 
 # simulate roll outcomes  -------------------------------------------
 
