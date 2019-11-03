@@ -1,6 +1,6 @@
 # Simulating Yahtzee and determining your next move
 `yahtzee-simulations.R`: R script that generates yahtzee simulations; sources `yahtzee-functions.R`\
-`yahtzee-functions.R`: R script containing the core functions to simulate yahtzee and plot probabilistic outcomes
+`yahtzee-functions.R`: R script containing the core functions to simulate yahtzee and plot probabilistic outcomes\
 `yahtzee-functions.py`: a python rewrite of `yahtzee-functions.R`
 
 
